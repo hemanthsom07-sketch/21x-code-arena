@@ -1,0 +1,18 @@
+# Piston has NO authentication. This proxy allows exactly one thing: POST /api/v2/execute with the secret token.
+# Package install/uninstall, runtime listing and everything else are blocked here (use localhost:2000 for those).
+:8080 {
+	@judge {
+		method POST
+		path /api/v2/execute
+		header X-Judge-Token {$JUDGE_TOKEN}
+	}
+	handle @judge {
+		request_body {
+			max_size 256KB
+		}
+		reverse_proxy piston:2000
+	}
+	handle {
+		respond "forbidden" 403
+	}
+}

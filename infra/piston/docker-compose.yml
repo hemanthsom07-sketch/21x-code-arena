@@ -1,0 +1,35 @@
+# Self-hosted, free code execution: Piston (sandbox) + Caddy (auth proxy). NOT yet run by me: see PHASE3_FREE_JUDGE.md.
+# Start:  docker compose up -d      (from this folder, after creating .env from .env.example)
+services:
+  piston:
+    image: ghcr.io/engineer-man/piston     # pin to a specific tag once you've verified a working one
+    restart: unless-stopped
+    privileged: true                        # required by Piston's isolation (needs cgroup v2 on the host)
+    tmpfs:
+      - /piston/jobs:exec,uid=1000,gid=1000,mode=711
+      - /tmp:exec
+    volumes:
+      - piston-packages:/piston/packages
+    environment:
+      PISTON_OUTPUT_MAX_SIZE: "65536"       # default is 1024 bytes, which would corrupt judging of larger outputs
+      PISTON_RUN_TIMEOUT: "10000"           # default max is 3000 ms; questions may set up to 10 s
+      PISTON_COMPILE_TIMEOUT: "15000"
+      PISTON_RUN_MEMORY_LIMIT: "-1"         # per-request limits come from each question's memory_limit_kb
+      PISTON_MAX_OPEN_FILES: "256"
+      PISTON_MAX_PROCESS_COUNT: "128"
+      PISTON_MAX_CONCURRENT_JOBS: "${JUDGE_MAX_JOBS:-4}"   # set to about your CPU core count
+      PISTON_DISABLE_NETWORKING: "true"
+    ports:
+      - "127.0.0.1:2000:2000"               # localhost only: used for runtime install + local verification. NEVER publish this.
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [piston]
+    environment:
+      JUDGE_TOKEN: "${JUDGE_TOKEN:?Set JUDGE_TOKEN in .env (copy .env.example)}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - "127.0.0.1:8080:8080"               # the only entry point your Edge Functions should reach (via tunnel/HTTPS)
+volumes:
+  piston-packages:

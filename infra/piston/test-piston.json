@@ -1,0 +1,1 @@
+{"language":"c","version":"10.2.0","files":[{"name":"main.c","content":"#include <stdio.h>\nint main(){printf(\"OK\");}"}],"stdin":""}
